@@ -1,11 +1,13 @@
 import csv
-from django.http import HttpResponse
+
 from django.db.models import Count
-from rest_framework.views import APIView
+from django.http import HttpResponse
 from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.employees.models import Employee, EmployeeStatus
 from apps.employees.permissions import IsManagerOrAdmin
 from apps.requests.models import InternalRequest, RequestStatus
-from apps.employees.models import Employee, EmployeeStatus
 
 
 class RequestReportView(APIView):

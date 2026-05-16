@@ -1,8 +1,10 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
+
+from apps.employees.permissions import IsManagerOrAdmin
+
 from .models import Document
 from .serializers import DocumentSerializer
-from apps.employees.permissions import IsManagerOrAdmin
 
 
 class DocumentViewSet(viewsets.ModelViewSet):

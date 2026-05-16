@@ -1,6 +1,8 @@
 from rest_framework import serializers
-from .models import Approval
+
 from apps.accounts.serializers import UserSerializer
+
+from .models import Approval
 
 
 class ApprovalSerializer(serializers.ModelSerializer):

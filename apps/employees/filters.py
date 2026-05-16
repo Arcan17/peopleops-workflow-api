@@ -1,5 +1,6 @@
 import django_filters
-from .models import Employee, EmployeeStatus, ContractType
+
+from .models import ContractType, Employee, EmployeeStatus
 
 
 class EmployeeFilter(django_filters.FilterSet):

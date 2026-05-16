@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import RequestReportView, EmployeeReportView, RequestExportView
+
+from .views import EmployeeReportView, RequestExportView, RequestReportView
 
 urlpatterns = [
     path("requests/", RequestReportView.as_view(), name="report-requests"),

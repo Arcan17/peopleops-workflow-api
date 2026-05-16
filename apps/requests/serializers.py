@@ -1,6 +1,8 @@
 from rest_framework import serializers
-from .models import InternalRequest, RequestStatus
+
 from apps.accounts.serializers import UserSerializer
+
+from .models import InternalRequest
 
 
 class InternalRequestSerializer(serializers.ModelSerializer):

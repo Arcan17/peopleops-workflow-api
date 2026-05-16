@@ -1,8 +1,9 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+
+from apps.employees.permissions import IsManagerOrAdmin
+
 from .models import Approval
 from .serializers import ApprovalSerializer
-from apps.employees.permissions import IsManagerOrAdmin
 
 
 class ApprovalViewSet(viewsets.ReadOnlyModelViewSet):

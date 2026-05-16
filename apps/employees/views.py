@@ -1,10 +1,15 @@
-from rest_framework import viewsets, status
-from rest_framework.response import Response
+from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
-from .models import Employee
-from .serializers import EmployeeSerializer, EmployeeCreateSerializer, EmployeeUpdateSerializer
-from .permissions import IsAdminUser, IsManagerOrAdmin
+from rest_framework.response import Response
+
 from .filters import EmployeeFilter
+from .models import Employee
+from .permissions import IsAdminUser, IsManagerOrAdmin
+from .serializers import (
+    EmployeeCreateSerializer,
+    EmployeeSerializer,
+    EmployeeUpdateSerializer,
+)
 
 
 class EmployeeViewSet(viewsets.ModelViewSet):
