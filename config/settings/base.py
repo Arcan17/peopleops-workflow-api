@@ -135,6 +135,23 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    "remind-pending-requests-daily": {
+        "task": "requests.remind_pending_requests",
+        "schedule": crontab(hour=9, minute=0),  # every day at 09:00 UTC
+    },
+    "mark-expired-requests-hourly": {
+        "task": "requests.mark_expired_requests",
+        "schedule": crontab(minute=0),  # every hour at :00
+    },
+    "generate-weekly-report-monday": {
+        "task": "requests.generate_weekly_report",
+        "schedule": crontab(hour=8, minute=0, day_of_week=1),  # Monday 08:00 UTC
+    },
+}
+
 # ── drf-spectacular ───────────────────────────────────────────────────────────
 SPECTACULAR_SETTINGS = {
     "TITLE": "PeopleOps Workflow API",
