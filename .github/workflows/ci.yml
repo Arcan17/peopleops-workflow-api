@@ -21,7 +21,9 @@ jobs:
           cache-dependency-path: requirements/test.txt
 
       - name: Install dependencies
-        run: pip install -r requirements/test.txt
+        run: |
+          pip install -r requirements/test.txt
+          pip install ruff==0.8.4
 
       - name: Lint with ruff
         run: ruff check .
