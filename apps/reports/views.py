@@ -2,6 +2,7 @@ import csv
 
 from django.db.models import Count
 from django.http import HttpResponse
+from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -13,6 +14,15 @@ from apps.requests.models import InternalRequest, RequestStatus
 class RequestReportView(APIView):
     permission_classes = [IsManagerOrAdmin]
 
+    @extend_schema(
+        tags=["Reports"],
+        summary="Request statistics",
+        description=(
+            "Returns aggregated statistics for all internal requests: "
+            "breakdown by status, by request type, total count and pending count. "
+            "Manager or Admin only."
+        ),
+    )
     def get(self, request):
         by_status = (
             InternalRequest.objects
@@ -37,6 +47,15 @@ class RequestReportView(APIView):
 class EmployeeReportView(APIView):
     permission_classes = [IsManagerOrAdmin]
 
+    @extend_schema(
+        tags=["Reports"],
+        summary="Employee summary",
+        description=(
+            "Returns a summary of the employee workforce: "
+            "breakdown by employment status, by department, total headcount and active count. "
+            "Manager or Admin only."
+        ),
+    )
     def get(self, request):
         by_status = (
             Employee.objects
@@ -60,12 +79,21 @@ class EmployeeReportView(APIView):
 class RequestExportView(APIView):
     permission_classes = [IsManagerOrAdmin]
 
+    @extend_schema(
+        tags=["Reports"],
+        summary="Export requests to CSV",
+        description=(
+            "Downloads a CSV file with all internal requests including employee name, "
+            "type, status, title and timestamps. Manager or Admin only."
+        ),
+        responses={(200, "text/csv"): bytes},
+    )
     def get(self, request):
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="requests_export.csv"'
 
         writer = csv.writer(response)
-        writer.writerow(["ID", "Employee", "Type", "Status", "Title", "Created At"])
+        writer.writerow(["ID", "Employee", "Type", "Status", "Title", "Start Date", "End Date", "Amount", "Created At"])
 
         requests_qs = InternalRequest.objects.select_related("employee").all()
         for req in requests_qs:
@@ -75,6 +103,9 @@ class RequestExportView(APIView):
                 req.get_request_type_display(),
                 req.get_status_display(),
                 req.title,
+                req.start_date or "",
+                req.end_date or "",
+                req.amount or "",
                 req.created_at.strftime("%Y-%m-%d %H:%M"),
             ])
 

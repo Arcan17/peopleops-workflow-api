@@ -1,4 +1,5 @@
 from django.db import transaction
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
@@ -19,6 +20,27 @@ from .serializers import (
 )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Requests"],
+        summary="List internal requests",
+        description=(
+            "Returns a paginated list of requests. "
+            "Managers and admins see all requests; employees see only their own."
+        ),
+    ),
+    retrieve=extend_schema(tags=["Requests"], summary="Get request detail"),
+    create=extend_schema(
+        tags=["Requests"],
+        summary="Submit a new internal request",
+        description="Create a vacation, permission, reimbursement or document request.",
+    ),
+    partial_update=extend_schema(
+        tags=["Requests"],
+        summary="Edit request (owner only, while PENDING)",
+    ),
+    destroy=extend_schema(tags=["Requests"], summary="Delete request"),
+)
 class InternalRequestViewSet(viewsets.ModelViewSet):
     queryset = InternalRequest.objects.select_related("employee").all()
     permission_classes = [IsAuthenticated]
@@ -73,6 +95,12 @@ class InternalRequestViewSet(viewsets.ModelViewSet):
         self._ensure_owner_can_edit()
         return super().partial_update(request, *args, **kwargs)
 
+    @extend_schema(
+        tags=["Requests"],
+        summary="Approve request",
+        description="Approve a pending/in-review request. Manager or Admin only. Creates approval record and notifies employee.",
+        request=ApproveRejectSerializer,
+    )
     @action(detail=True, methods=["post"], permission_classes=[IsManagerOrAdmin])
     def approve(self, request, pk=None):
         internal_request = self.get_object()
@@ -104,6 +132,12 @@ class InternalRequestViewSet(viewsets.ModelViewSet):
 
         return Response(InternalRequestSerializer(internal_request).data)
 
+    @extend_schema(
+        tags=["Requests"],
+        summary="Reject request",
+        description="Reject a pending/in-review request. Manager or Admin only. Creates approval record and notifies employee.",
+        request=ApproveRejectSerializer,
+    )
     @action(detail=True, methods=["post"], permission_classes=[IsManagerOrAdmin])
     def reject(self, request, pk=None):
         internal_request = self.get_object()

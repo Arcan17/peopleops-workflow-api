@@ -1,3 +1,4 @@
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -12,6 +13,47 @@ from .serializers import (
 )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Employees"],
+        summary="List employees",
+        description=(
+            "Returns a paginated list of employees. "
+            "Managers and admins see all employees; regular employees see only themselves. "
+            "Supports filtering by status, department and contract type."
+        ),
+        parameters=[
+            OpenApiParameter("status", description="Filter by status (active/inactive/on_leave)"),
+            OpenApiParameter("department", description="Filter by department name"),
+            OpenApiParameter("contract_type", description="Filter by contract type"),
+            OpenApiParameter("search", description="Search by name, email or position"),
+        ],
+    ),
+    retrieve=extend_schema(
+        tags=["Employees"],
+        summary="Get employee detail",
+    ),
+    create=extend_schema(
+        tags=["Employees"],
+        summary="Create employee",
+        description="Create a new employee record. Admin only.",
+    ),
+    update=extend_schema(
+        tags=["Employees"],
+        summary="Update employee",
+        description="Full update of an employee. Manager or Admin only.",
+    ),
+    partial_update=extend_schema(
+        tags=["Employees"],
+        summary="Partial update employee",
+        description="Partial update of an employee. Manager or Admin only.",
+    ),
+    destroy=extend_schema(
+        tags=["Employees"],
+        summary="Deactivate employee (soft delete)",
+        description="Sets employee status to inactive and deactivates the user account. Admin only. Data is preserved.",
+    ),
+)
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("user", "manager").all()
     filterset_class = EmployeeFilter
@@ -37,7 +79,6 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_manager_or_admin:
             return super().get_queryset()
-        # Regular employees can only see themselves
         return super().get_queryset().filter(user=user)
 
     def destroy(self, request, *args, **kwargs):

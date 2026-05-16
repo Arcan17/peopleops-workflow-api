@@ -167,9 +167,34 @@ CELERY_BEAT_SCHEDULE = {
 # ── drf-spectacular ───────────────────────────────────────────────────────────
 SPECTACULAR_SETTINGS = {
     "TITLE": "PeopleOps Workflow API",
-    "DESCRIPTION": "Backend API for HR workflow automation",
+    "DESCRIPTION": (
+        "Backend API for HR workflow automation built with Django REST Framework.\n\n"
+        "## Authentication\n"
+        "This API uses JWT tokens. Obtain a token via `POST /api/auth/token/` "
+        "and include it in requests as: `Authorization: Bearer <token>`\n\n"
+        "## Roles\n"
+        "- **Admin** — full access\n"
+        "- **Manager** — approve/reject requests, view all employees and reports\n"
+        "- **Employee** — manage own requests and notifications\n\n"
+        "## Demo credentials\n"
+        "Run `python manage.py seed_demo` to populate demo data.\n"
+        "- Admin: `admin@peopleops.com` / `Admin1234!`\n"
+        "- Manager: `carlos@peopleops.com` / `Manager1234!`\n"
+        "- Employee: `ana@peopleops.com` / `Employee1234!`"
+    ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "TAGS": [
+        {"name": "Auth", "description": "JWT token obtain and refresh"},
+        {"name": "Employees", "description": "Employee CRUD with role-based access and soft delete"},
+        {"name": "Requests", "description": "Internal request workflow — create, approve, reject"},
+        {"name": "Approvals", "description": "Approval records (read-only, auto-created on approve/reject)"},
+        {"name": "Documents", "description": "Document upload and management per employee"},
+        {"name": "Notifications", "description": "Auto-generated notifications with mark-as-read support"},
+        {"name": "Reports", "description": "JSON statistics and CSV export for managers and admins"},
+    ],
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SORT_OPERATIONS": False,
 }
 
 if not DEBUG and not IS_TESTING and not IS_DEVELOPMENT:

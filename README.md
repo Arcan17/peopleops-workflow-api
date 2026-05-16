@@ -4,133 +4,299 @@
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.15-red.svg)](https://www.django-rest-framework.org/)
+[![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen.svg)](#running-tests)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Backend API for HR workflow automation. Manages employees, internal requests, approvals, documents, notifications and reports. Includes role-based permissions, JWT auth, async tasks with Celery/Redis, automated tests and CI.
+Backend REST API for **HR workflow automation** — built to demonstrate production-grade Django patterns for backend engineering roles.
+
+Handles the full lifecycle of employee requests: from creation and review through approval or rejection, with automatic notifications, document management, scheduled background tasks and analytics reports.
+
+---
+
+## What this project demonstrates
+
+| Skill | Implementation |
+|---|---|
+| **Django REST Framework** | ModelViewSets, custom actions, serializer layering, permission classes |
+| **Role-based access control** | Admin / Manager / Employee roles with per-action permission enforcement |
+| **Business logic enforcement** | Manager can only approve direct reports; owner-only edits; soft delete |
+| **Async background tasks** | Celery + Redis: expiry checks, reminder notifications, weekly reports |
+| **Database design** | PostgreSQL with migrations, FKs, select_related, bulk operations |
+| **API documentation** | drf-spectacular with OpenAPI tags, summaries and Swagger/ReDoc UIs |
+| **Automated testing** | pytest-django, 48 tests, 96% coverage, no external services in CI |
+| **CI/CD** | GitHub Actions: lint (ruff) + migration check + test coverage threshold |
+| **Containerization** | Docker Compose with 5 services: api, db, redis, celery-worker, celery-beat |
+| **Admin interface** | Fully configured Django Admin with bulk actions, badges, fieldsets |
+
+---
 
 ## Tech Stack
 
-- **Python 3.11** · **Django 5** · **Django REST Framework**
-- **PostgreSQL 15** · **Redis 7** · **Celery** (async tasks)
-- **pytest** · **pytest-django** (automated testing)
-- **drf-spectacular** (OpenAPI/Swagger docs)
-- **Docker** · **Docker Compose** · **GitHub Actions** CI
+| Layer | Technology |
+|---|---|
+| Language | Python 3.11 |
+| Framework | Django 5.1 · Django REST Framework 3.15 |
+| Database | PostgreSQL 15 |
+| Cache / Broker | Redis 7 |
+| Task queue | Celery 5.4 + django-celery-beat |
+| Auth | SimpleJWT (access 1h, refresh 7d) |
+| Docs | drf-spectacular (OpenAPI 3.0) |
+| Testing | pytest · pytest-django · pytest-cov |
+| Linting | ruff |
+| Containers | Docker · Docker Compose |
+| CI/CD | GitHub Actions |
 
-## Features
+---
 
-| Module | Description |
-|--------|-------------|
-| **Employees** | CRUD with role-based access, soft delete, filters |
-| **Requests** | Vacation, permissions, reimbursements, document requests |
-| **Approvals** | Approve/reject workflow with comments and manager ownership checks |
-| **Documents** | File upload per employee with type classification |
-| **Notifications** | Auto-generated on status changes, mark-as-read |
-| **Reports** | JSON summaries + CSV export |
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Docker Compose                        │
+│                                                         │
+│  ┌──────────┐   ┌──────────┐   ┌──────────────────┐   │
+│  │ Postgres │   │  Redis   │   │   Django + DRF   │   │
+│  │    15    │   │    7     │   │   (Gunicorn 3w)  │   │
+│  └──────────┘   └──────────┘   └──────────────────┘   │
+│       │               │                  │              │
+│       └───────────────┤      ┌───────────┘              │
+│                       │      │                          │
+│                  ┌────┴──────┴────┐                    │
+│                  │  Celery Worker │                    │
+│                  │  Celery Beat   │                    │
+│                  └────────────────┘                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Application modules
+
+```
+apps/
+├── accounts/      CustomUser with AbstractBaseUser, role enum (admin/manager/employee)
+├── employees/     Employee profiles, soft delete, manager hierarchy, filters
+├── requests/      InternalRequest workflow: create → review → approve/reject
+├── approvals/     Approval records auto-created on request decision
+├── documents/     File upload per employee (contract, payslip, certificate…)
+├── notifications/ Auto-generated on status change; mark-as-read support
+└── reports/       Aggregated JSON stats + CSV export
+```
+
+---
 
 ## Role Permissions
 
 | Action | Employee | Manager | Admin |
-|--------|----------|---------|-------|
-| View own profile/requests | ✅ | ✅ | ✅ |
-| Create request | ✅ | ✅ | ✅ |
-| Approve/reject direct reports | ❌ | ✅ | ❌ |
-| Approve/reject any request | ❌ | ❌ | ✅ |
+|---|:---:|:---:|:---:|
+| View own profile / requests | ✅ | ✅ | ✅ |
+| Create internal request | ✅ | ✅ | ✅ |
+| Edit own pending request | ✅ | ❌ | ❌ |
+| Approve / reject direct reports | ❌ | ✅ | ❌ |
+| Approve / reject any request | ❌ | ❌ | ✅ |
 | View all employees | ❌ | ✅ | ✅ |
-| Create/edit employees | ❌ | ❌ | ✅ |
+| Create / deactivate employees | ❌ | ❌ | ✅ |
+| Upload / delete documents | ❌ | ✅ | ✅ |
 | View reports | ❌ | ✅ | ✅ |
+| Django Admin access | ❌ | ❌ | ✅ |
+
+---
 
 ## Quick Start
 
 ```bash
-# Clone
+# 1. Clone
 git clone https://github.com/Arcan17/peopleops-workflow-api.git
 cd peopleops-workflow-api
 
-# Configure environment
+# 2. Configure environment
 cp .env.example .env
 
-# Development mode for local Docker
-echo "DEBUG=True" >> .env
-echo "SECRET_KEY=django-insecure-development-key-12345" >> .env
+# 3. Start all services (api + db + redis + celery-worker + celery-beat)
+docker compose up -d --build
 
-# Start all services
-docker compose up -d
-
-# Create superuser
-make superuser
+# 4. Seed demo data (users, requests, approvals, notifications)
+docker compose exec api python manage.py seed_demo
 ```
 
-Visit:
-- **API**: http://localhost:8000/api/
-- **Swagger UI**: http://localhost:8000/api/docs/
-- **Admin panel**: http://localhost:8000/admin/
+| Interface | URL |
+|---|---|
+| Swagger UI | http://localhost:8000/api/docs/ |
+| ReDoc | http://localhost:8000/api/redoc/ |
+| Django Admin | http://localhost:8000/admin/ |
+| OpenAPI schema | http://localhost:8000/api/schema/ |
 
-Production-style defaults stay disabled unless you explicitly set environment variables such as `SECRET_KEY`, `ALLOWED_HOSTS`, and `DJANGO_SETTINGS_MODULE=config.settings.production`.
+---
+
+## Demo Credentials
+
+Populated automatically by `seed_demo`:
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@peopleops.com` | `Admin1234!` |
+| Manager | `carlos@peopleops.com` | `Manager1234!` |
+| Manager | `sofia@peopleops.com` | `Manager1234!` |
+| Employee | `ana@peopleops.com` | `Employee1234!` |
+| Employee | `pedro@peopleops.com` | `Employee1234!` |
+| Employee | `lucia@peopleops.com` | `Employee1234!` |
+
+---
 
 ## API Endpoints
 
-### Auth
+### Authentication
 ```
-POST /api/auth/token/          → Get JWT token
-POST /api/auth/token/refresh/  → Refresh token
+POST /api/auth/token/          → Obtain JWT (access + refresh)
+POST /api/auth/token/refresh/  → Refresh access token
 ```
 
 ### Employees
 ```
-GET    /api/employees/             → List employees
-POST   /api/employees/             → Create employee (admin only)
-GET    /api/employees/{id}/        → Employee detail
-PATCH  /api/employees/{id}/        → Update employee
-DELETE /api/employees/{id}/        → Deactivate employee (soft delete)
+GET    /api/employees/             → List (filters: status, department, contract_type, search)
+POST   /api/employees/             → Create employee — Admin only
+GET    /api/employees/{id}/        → Detail
+PATCH  /api/employees/{id}/        → Update — Manager or Admin
+DELETE /api/employees/{id}/        → Soft delete (sets status=inactive) — Admin only
 ```
 
-### Requests
+### Internal Requests
 ```
-GET    /api/requests/              → List requests
-POST   /api/requests/              → Create request
-GET    /api/requests/{id}/         → Request detail
-PATCH  /api/requests/{id}/         → Edit own pending request
-POST   /api/requests/{id}/approve/ → Approve (manager/admin)
-POST   /api/requests/{id}/reject/  → Reject (manager/admin)
+GET    /api/requests/              → List (employees see own; managers/admins see all)
+POST   /api/requests/              → Submit request (vacation/permission/reimbursement/document)
+GET    /api/requests/{id}/         → Detail
+PATCH  /api/requests/{id}/         → Edit — owner only, while status=PENDING
+POST   /api/requests/{id}/approve/ → Approve — Manager (direct reports) or Admin
+POST   /api/requests/{id}/reject/  → Reject — Manager (direct reports) or Admin
+```
+
+### Approvals
+```
+GET /api/approvals/        → List all approval records — Manager or Admin
+GET /api/approvals/{id}/   → Detail
+```
+
+### Documents
+```
+GET    /api/documents/         → List (employees see own; managers see all)
+POST   /api/documents/         → Upload — Manager or Admin
+GET    /api/documents/{id}/    → Detail
+DELETE /api/documents/{id}/    → Delete — Manager or Admin
+```
+
+### Notifications
+```
+GET   /api/notifications/            → My notifications
+PATCH /api/notifications/{id}/       → Mark as read
+POST  /api/notifications/read_all/   → Mark all as read
 ```
 
 ### Reports
 ```
-GET /api/reports/requests/         → Request statistics (JSON)
-GET /api/reports/employees/        → Employee summary (JSON)
-GET /api/reports/requests/export/  → CSV download
+GET /api/reports/requests/         → Stats by status + type (JSON) — Manager or Admin
+GET /api/reports/employees/        → Headcount by status + department (JSON) — Manager or Admin
+GET /api/reports/requests/export/  → Full CSV download — Manager or Admin
 ```
+
+---
+
+## Celery Background Tasks
+
+| Task | Schedule | Description |
+|---|---|---|
+| `remind_pending_requests` | Daily 09:00 UTC | Notifies managers about requests pending >48h |
+| `mark_expired_requests` | Every hour | Auto-rejects vacation requests with past end dates |
+| `generate_weekly_report` | Monday 08:00 UTC | Logs weekly request statistics |
+
+---
 
 ## Running Tests
 
 ```bash
-# Install test dependencies
+# Install dependencies (uses SQLite in-memory — no Docker needed)
 pip install -r requirements/test.txt
 
-# Run all tests with coverage
-python -m pytest tests/ -v --cov=apps --cov-report=term-missing
+# Run full suite with coverage
+pytest tests/ -v --cov=apps --cov-report=term-missing
 
 # Run specific module
-python -m pytest tests/test_requests.py -v
+pytest tests/test_requests.py -v
+
+# Run with HTML report
+pytest tests/ --cov=apps --cov-report=html
 ```
+
+**Current results:** 48 tests · 96% coverage · 0.3s
+
+---
 
 ## Project Structure
 
 ```
 peopleops-workflow-api/
 ├── apps/
-│   ├── accounts/        # CustomUser, roles
-│   ├── employees/       # Employee CRUD
-│   ├── requests/        # Internal requests
-│   ├── approvals/       # Approval workflow
-│   ├── documents/       # Document management
-│   ├── notifications/   # Auto-notifications
-│   └── reports/         # Reports & CSV export
+│   ├── accounts/
+│   │   ├── management/commands/seed_demo.py   ← demo data command
+│   │   ├── models.py                          ← CustomUser + Role
+│   │   └── admin.py                           ← role badge, readonly timestamps
+│   ├── employees/     filters, soft delete, manager hierarchy
+│   ├── requests/      workflow, approve/reject actions, Celery tasks
+│   ├── approvals/     read-only audit trail
+│   ├── documents/     file upload, permission guards
+│   ├── notifications/ auto-create on status change, bulk mark-read
+│   └── reports/       aggregations, CSV export
 ├── config/
-│   ├── settings/        # base / development / testing
+│   ├── settings/
+│   │   ├── base.py          ← shared config, Celery Beat schedule
+│   │   ├── development.py   ← DEBUG=True, django-extensions
+│   │   ├── testing.py       ← SQLite in-memory, CELERY_TASK_ALWAYS_EAGER
+│   │   └── production.py    ← HTTPS, HSTS, strict SECRET_KEY
 │   ├── urls.py
 │   └── celery.py
-├── tests/               # pytest test suite
-├── docker-compose.yml
-├── Dockerfile
-└── .github/workflows/ci.yml
+├── tests/
+│   ├── conftest.py          ← shared fixtures
+│   ├── test_auth.py
+│   ├── test_employees.py
+│   ├── test_requests.py     ← full approve/reject workflow
+│   ├── test_approvals.py
+│   ├── test_documents.py
+│   ├── test_notifications.py
+│   ├── test_reports.py
+│   └── test_tasks.py        ← Celery task tests
+├── docs/
+│   ├── postman_collection.json
+│   └── images/
+├── docker-compose.yml        ← 5 services
+├── Dockerfile                ← python:3.11-slim + gunicorn
+├── Makefile
+├── ruff.toml
+└── .github/workflows/ci.yml  ← lint + migration check + tests
 ```
+
+---
+
+## Makefile Commands
+
+```bash
+make up              # docker compose up -d
+make down            # docker compose down
+make logs            # follow api logs
+make migrate         # run migrations
+make test            # pytest (local)
+make lint            # ruff check .
+make shell           # django shell
+make superuser       # create superuser
+make schema          # generate openapi schema.yml
+```
+
+---
+
+## Key Design Decisions
+
+**Why AbstractBaseUser?** Email-first auth (no username). Gives full control over the authentication backend for potential SSO/OAuth extension.
+
+**Why soft delete?** Employee data is referenced by requests, approvals and documents. Hard deletion would break referential integrity and audit trails.
+
+**Why Celery Beat over cron?** Schedules are stored in the DB (django-celery-beat), making them inspectable and adjustable without redeployment.
+
+**Why split serializers?** `CreateSerializer` / `UpdateSerializer` / `ReadSerializer` per resource prevents mass-assignment vulnerabilities and keeps validation logic explicit.
+
+**Why CELERY_TASK_ALWAYS_EAGER in tests?** Tasks run synchronously in the test process — no broker needed, no test infrastructure overhead.

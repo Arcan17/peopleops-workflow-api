@@ -1,0 +1,378 @@
+{
+  "info": {
+    "name": "PeopleOps Workflow API",
+    "description": "Complete Postman collection for the PeopleOps Workflow API.\n\nRun `seed_demo` first, then authenticate with one of the demo users:\n- Admin: admin@peopleops.com / Admin1234!\n- Manager: carlos@peopleops.com / Manager1234!\n- Employee: ana@peopleops.com / Employee1234!\n\nThe collection uses the {{base_url}} and {{token}} variables. Set base_url=http://localhost:8000 and run the Login request to auto-populate {{token}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "peopleops-workflow-api-v1"
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8000", "type": "string"},
+    {"key": "token", "value": "", "type": "string"}
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (get JWT token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access) { pm.collectionVariables.set('token', json.access); }",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has access token', () => pm.expect(json.access).to.be.a('string'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@peopleops.com\",\n  \"password\": \"Admin1234!\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/token/"
+          }
+        },
+        {
+          "name": "Login as Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access) { pm.collectionVariables.set('token', json.access); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"carlos@peopleops.com\",\n  \"password\": \"Manager1234!\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/token/"
+          }
+        },
+        {
+          "name": "Login as Employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access) { pm.collectionVariables.set('token', json.access); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ana@peopleops.com\",\n  \"password\": \"Employee1234!\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/token/"
+          }
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"<your_refresh_token>\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/token/refresh/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employees",
+      "item": [
+        {
+          "name": "List employees",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": {
+              "raw": "{{base_url}}/api/employees/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "employees", ""],
+              "query": [
+                {"key": "status", "value": "active", "disabled": true},
+                {"key": "department", "value": "Engineering", "disabled": true},
+                {"key": "search", "value": "ana", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get employee detail",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": "{{base_url}}/api/employees/1/"
+          }
+        },
+        {
+          "name": "Create employee (Admin only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newdev@peopleops.com\",\n  \"first_name\": \"New\",\n  \"last_name\": \"Developer\",\n  \"role\": \"employee\",\n  \"position\": \"Junior Developer\",\n  \"department\": \"Engineering\",\n  \"hire_date\": \"2026-01-15\",\n  \"contract_type\": \"full_time\",\n  \"base_salary\": 1800000\n}"
+            },
+            "url": "{{base_url}}/api/employees/"
+          }
+        },
+        {
+          "name": "Update employee (partial)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"position\": \"Senior Developer\",\n  \"base_salary\": 2500000\n}"
+            },
+            "url": "{{base_url}}/api/employees/1/"
+          }
+        },
+        {
+          "name": "Deactivate employee (soft delete, Admin only)",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": "{{base_url}}/api/employees/1/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Requests",
+      "item": [
+        {
+          "name": "List my requests",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": {
+              "raw": "{{base_url}}/api/requests/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "requests", ""],
+              "query": [
+                {"key": "status", "value": "pending", "disabled": true},
+                {"key": "request_type", "value": "vacation", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get request detail",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": "{{base_url}}/api/requests/1/"
+          }
+        },
+        {
+          "name": "Create vacation request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request_type\": \"vacation\",\n  \"title\": \"Summer vacation\",\n  \"description\": \"Annual leave for July 2026.\",\n  \"start_date\": \"2026-07-01\",\n  \"end_date\": \"2026-07-15\"\n}"
+            },
+            "url": "{{base_url}}/api/requests/"
+          }
+        },
+        {
+          "name": "Create reimbursement request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request_type\": \"reimbursement\",\n  \"title\": \"Office supplies\",\n  \"description\": \"Mechanical keyboard for remote work.\",\n  \"amount\": 89000\n}"
+            },
+            "url": "{{base_url}}/api/requests/"
+          }
+        },
+        {
+          "name": "Create permission request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request_type\": \"permission\",\n  \"title\": \"Medical appointment\",\n  \"description\": \"Need to leave at 14:00 for a medical check-up.\",\n  \"start_date\": \"2026-06-20\",\n  \"end_date\": \"2026-06-20\"\n}"
+            },
+            "url": "{{base_url}}/api/requests/"
+          }
+        },
+        {
+          "name": "Edit request (owner, while pending)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated description with more details.\"\n}"
+            },
+            "url": "{{base_url}}/api/requests/1/"
+          }
+        },
+        {
+          "name": "Approve request (Manager/Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"Approved. Enjoy your vacation!\"\n}"
+            },
+            "url": "{{base_url}}/api/requests/1/approve/"
+          }
+        },
+        {
+          "name": "Reject request (Manager/Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"Insufficient staffing during that period. Please reschedule.\"\n}"
+            },
+            "url": "{{base_url}}/api/requests/2/reject/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Approvals",
+      "item": [
+        {
+          "name": "List approvals (Manager/Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": "{{base_url}}/api/approvals/"
+          }
+        },
+        {
+          "name": "Get approval detail",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": "{{base_url}}/api/approvals/1/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List my notifications",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": "{{base_url}}/api/notifications/"
+          }
+        },
+        {
+          "name": "Mark notification as read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_read\": true\n}"
+            },
+            "url": "{{base_url}}/api/notifications/1/"
+          }
+        },
+        {
+          "name": "Mark all as read",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": "{{base_url}}/api/notifications/read_all/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Request statistics (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": "{{base_url}}/api/reports/requests/"
+          }
+        },
+        {
+          "name": "Employee summary (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": "{{base_url}}/api/reports/employees/"
+          }
+        },
+        {
+          "name": "Export requests to CSV",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": "{{base_url}}/api/reports/requests/export/"
+          }
+        }
+      ]
+    }
+  ]
+}
