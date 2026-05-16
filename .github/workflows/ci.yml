@@ -28,6 +28,11 @@ jobs:
       - name: Lint with ruff
         run: ruff check .
 
+      - name: Check migrations are committed
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.testing
+        run: python manage.py makemigrations --check --dry-run
+
       - name: Run tests
         env:
           DJANGO_SETTINGS_MODULE: config.settings.testing

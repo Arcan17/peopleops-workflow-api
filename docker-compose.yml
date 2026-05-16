@@ -24,7 +24,8 @@ services:
     build: .
     command: >
       sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
       - .:/app
       - media_data:/app/media
@@ -32,10 +33,13 @@ services:
       - "8000:8000"
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.development
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-development-key-12345
       - DB_HOST=db
       - DB_NAME=peopleops
       - DB_USER=postgres
       - DB_PASSWORD=postgres
+      - ALLOWED_HOSTS=localhost,127.0.0.1
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       db:
@@ -50,10 +54,13 @@ services:
       - .:/app
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.development
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-development-key-12345
       - DB_HOST=db
       - DB_NAME=peopleops
       - DB_USER=postgres
       - DB_PASSWORD=postgres
+      - ALLOWED_HOSTS=localhost,127.0.0.1
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       - api
@@ -66,10 +73,13 @@ services:
       - .:/app
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.development
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-development-key-12345
       - DB_HOST=db
       - DB_NAME=peopleops
       - DB_USER=postgres
       - DB_PASSWORD=postgres
+      - ALLOWED_HOSTS=localhost,127.0.0.1
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       - api

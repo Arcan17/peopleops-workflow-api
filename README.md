@@ -5,7 +5,7 @@
 [![Django](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.15-red.svg)](https://www.django-rest-framework.org/)
 
-Backend API for HR workflow automation. Manages employees, internal requests, approvals, documents, notifications and reports. Includes role-based permissions, JWT auth, async tasks with Celery/Redis, automated tests and CI/CD.
+Backend API for HR workflow automation. Manages employees, internal requests, approvals, documents, notifications and reports. Includes role-based permissions, JWT auth, async tasks with Celery/Redis, automated tests and CI.
 
 ## Tech Stack
 
@@ -13,7 +13,7 @@ Backend API for HR workflow automation. Manages employees, internal requests, ap
 - **PostgreSQL 15** · **Redis 7** · **Celery** (async tasks)
 - **pytest** · **pytest-django** (automated testing)
 - **drf-spectacular** (OpenAPI/Swagger docs)
-- **Docker** · **Docker Compose** · **GitHub Actions** CI/CD
+- **Docker** · **Docker Compose** · **GitHub Actions** CI
 
 ## Features
 
@@ -21,7 +21,7 @@ Backend API for HR workflow automation. Manages employees, internal requests, ap
 |--------|-------------|
 | **Employees** | CRUD with role-based access, soft delete, filters |
 | **Requests** | Vacation, permissions, reimbursements, document requests |
-| **Approvals** | Approve/reject workflow with comments |
+| **Approvals** | Approve/reject workflow with comments and manager ownership checks |
 | **Documents** | File upload per employee with type classification |
 | **Notifications** | Auto-generated on status changes, mark-as-read |
 | **Reports** | JSON summaries + CSV export |
@@ -32,7 +32,8 @@ Backend API for HR workflow automation. Manages employees, internal requests, ap
 |--------|----------|---------|-------|
 | View own profile/requests | ✅ | ✅ | ✅ |
 | Create request | ✅ | ✅ | ✅ |
-| Approve/reject | ❌ | ✅ | ✅ |
+| Approve/reject direct reports | ❌ | ✅ | ❌ |
+| Approve/reject any request | ❌ | ❌ | ✅ |
 | View all employees | ❌ | ✅ | ✅ |
 | Create/edit employees | ❌ | ❌ | ✅ |
 | View reports | ❌ | ✅ | ✅ |
@@ -47,6 +48,10 @@ cd peopleops-workflow-api
 # Configure environment
 cp .env.example .env
 
+# Development mode for local Docker
+echo "DEBUG=True" >> .env
+echo "SECRET_KEY=django-insecure-development-key-12345" >> .env
+
 # Start all services
 docker compose up -d
 
@@ -58,6 +63,8 @@ Visit:
 - **API**: http://localhost:8000/api/
 - **Swagger UI**: http://localhost:8000/api/docs/
 - **Admin panel**: http://localhost:8000/admin/
+
+Production-style defaults stay disabled unless you explicitly set environment variables such as `SECRET_KEY`, `ALLOWED_HOSTS`, and `DJANGO_SETTINGS_MODULE=config.settings.production`.
 
 ## API Endpoints
 
@@ -81,6 +88,7 @@ DELETE /api/employees/{id}/        → Deactivate employee (soft delete)
 GET    /api/requests/              → List requests
 POST   /api/requests/              → Create request
 GET    /api/requests/{id}/         → Request detail
+PATCH  /api/requests/{id}/         → Edit own pending request
 POST   /api/requests/{id}/approve/ → Approve (manager/admin)
 POST   /api/requests/{id}/reject/  → Reject (manager/admin)
 ```
@@ -99,10 +107,10 @@ GET /api/reports/requests/export/  → CSV download
 pip install -r requirements/test.txt
 
 # Run all tests with coverage
-pytest tests/ -v --cov=apps --cov-report=term-missing
+python -m pytest tests/ -v --cov=apps --cov-report=term-missing
 
 # Run specific module
-pytest tests/test_requests.py -v
+python -m pytest tests/test_requests.py -v
 ```
 
 ## Project Structure

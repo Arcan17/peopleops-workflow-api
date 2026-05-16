@@ -19,7 +19,7 @@ makemigrations:
 	docker compose exec api python manage.py makemigrations
 
 test:
-	pytest tests/ -v --cov=apps --cov-report=term-missing
+	python -m pytest tests/ -v --cov=apps --cov-report=term-missing
 
 lint:
 	ruff check .

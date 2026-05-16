@@ -1,13 +1,28 @@
+import os
+from datetime import timedelta
 from pathlib import Path
+
 from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+CURRENT_SETTINGS_MODULE = os.environ.get("DJANGO_SETTINGS_MODULE", "")
+IS_TESTING = CURRENT_SETTINGS_MODULE.endswith(".testing")
+IS_DEVELOPMENT = CURRENT_SETTINGS_MODULE.endswith(".development")
 
-SECRET_KEY = config("SECRET_KEY", default="django-insecure-change-me-in-production")
+DEBUG = config("DEBUG", default=False, cast=bool)
 
-DEBUG = config("DEBUG", default=True, cast=bool)
+SECRET_KEY = config("SECRET_KEY", default="")
+if not SECRET_KEY:
+    if DEBUG or IS_TESTING or IS_DEVELOPMENT:
+        SECRET_KEY = "django-insecure-development-key-12345"
+    else:
+        raise ValueError("SECRET_KEY must be set when DEBUG is False")
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="*").split(",")
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
+    if host.strip()
+]
 
 DJANGO_APPS = [
     "django.contrib.admin",
@@ -117,9 +132,6 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
-# ── JWT ───────────────────────────────────────────────────────────────────────
-from datetime import timedelta
-
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
@@ -159,3 +171,12 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+
+if not DEBUG and not IS_TESTING and not IS_DEVELOPMENT:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = config("SECURE_HSTS_SECONDS", default=3600, cast=int)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True

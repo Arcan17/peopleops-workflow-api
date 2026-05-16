@@ -1,8 +1,13 @@
+from datetime import timedelta
+
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import CustomUser, Role
 from apps.employees.models import Employee
+from apps.notifications.models import Notification, NotificationType
 from apps.requests.models import InternalRequest, RequestType
 
 
@@ -64,7 +69,7 @@ def employee_client(api_client, employee_user):
 
 
 @pytest.fixture
-def sample_employee(db, employee_user):
+def sample_employee(db, employee_user, manager_user):
     import datetime
     return Employee.objects.create(
         user=employee_user,
@@ -72,15 +77,39 @@ def sample_employee(db, employee_user):
         department="Engineering",
         hire_date=datetime.date(2023, 1, 15),
         contract_type="full_time",
+        manager=manager_user,
     )
 
 
 @pytest.fixture
-def sample_request(db, employee_user):
+def sample_request(db, employee_user, sample_employee):
+    start_date = timezone.now().date() + timedelta(days=10)
+    end_date = start_date + timedelta(days=4)
     return InternalRequest.objects.create(
         employee=employee_user,
         request_type=RequestType.VACATION,
         title="Vacation Request",
         description="I need 5 days off.",
         status="pending",
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+@pytest.fixture
+def sample_notification(db, employee_user, sample_request):
+    return Notification.objects.create(
+        recipient=employee_user,
+        message="You have a pending update.",
+        notification_type=NotificationType.GENERAL,
+        related_request=sample_request,
+    )
+
+
+@pytest.fixture
+def sample_document_file():
+    return SimpleUploadedFile(
+        "contract.txt",
+        b"sample contract content",
+        content_type="text/plain",
     )

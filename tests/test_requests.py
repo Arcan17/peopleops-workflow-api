@@ -66,10 +66,67 @@ class TestInternalRequests:
         response = employee_client.post(f"{self.URL}{sample_request.id}/approve/", {})
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
+    def test_admin_cannot_approve_own_request(self, admin_client, admin_user):
+        from apps.requests.models import InternalRequest
+        own_request = InternalRequest.objects.create(
+            employee=admin_user,
+            request_type="permission",
+            title="Own request",
+            description="self review should fail",
+        )
+        response = admin_client.post(f"{self.URL}{own_request.id}/approve/", {})
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_manager_cannot_approve_request_without_reporting_line(self, manager_client, sample_request):
+        from apps.employees.models import Employee
+        Employee.objects.filter(user=sample_request.employee).update(manager=None)
+        response = manager_client.post(f"{self.URL}{sample_request.id}/approve/", {})
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
     def test_cannot_approve_already_approved_request(self, manager_client, sample_request):
         manager_client.post(f"{self.URL}{sample_request.id}/approve/", {})
         response = manager_client.post(f"{self.URL}{sample_request.id}/approve/", {})
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # ── Update ─────────────────────────────────────────────────────────────────
+    def test_employee_can_edit_own_pending_request(self, employee_client, sample_request):
+        response = employee_client.patch(
+            f"{self.URL}{sample_request.id}/",
+            {"title": "Updated title"},
+            format="json",
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["title"] == "Updated title"
+
+    def test_manager_cannot_edit_employee_request(self, manager_client, sample_request):
+        response = manager_client.patch(
+            f"{self.URL}{sample_request.id}/",
+            {"title": "Manager edit"},
+            format="json",
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_create_request_rejects_invalid_date_range(self, employee_client):
+        payload = self._request_payload()
+        payload["start_date"] = "2025-07-10"
+        payload["end_date"] = "2025-07-05"
+        response = employee_client.post(self.URL, payload, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "end_date" in response.data
+
+    def test_reimbursement_requires_positive_amount(self, employee_client):
+        response = employee_client.post(
+            self.URL,
+            {
+                "request_type": "reimbursement",
+                "title": "Taxi",
+                "description": "Airport transfer",
+                "amount": 0,
+            },
+            format="json",
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "amount" in response.data
 
     # ── Notifications ─────────────────────────────────────────────────────────
     def test_notification_created_on_approve(self, manager_client, sample_request):

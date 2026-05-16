@@ -22,7 +22,7 @@ def test_remind_pending_no_stale(manager_client, sample_request):
     # sample_request was just created — not stale
     result = remind_pending_requests()
     assert result == "No stale requests"
-    assert Notification.objects.filter(notification_type="pending_reminder").count() == 0
+    assert Notification.objects.filter(notification_type="request_pending").count() == 0
 
 
 @pytest.mark.django_db
@@ -38,7 +38,7 @@ def test_remind_pending_sends_notifications(manager_user, employee_user, sample_
     result = remind_pending_requests()
 
     # At least one notification was created (for manager_user)
-    notifications = Notification.objects.filter(notification_type="pending_reminder")
+    notifications = Notification.objects.filter(notification_type="request_pending")
     assert notifications.exists()
     assert "has been pending" in notifications.first().message
     assert "1 stale" in result or "stale requests" in result

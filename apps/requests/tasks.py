@@ -4,6 +4,8 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.utils import timezone
 
+from apps.notifications.models import NotificationType
+
 logger = get_task_logger(__name__)
 
 
@@ -36,16 +38,16 @@ def remind_pending_requests():
     for request in stale:
         for manager in managers:
             notifications.append(
-                Notification(
-                    recipient=manager,
-                    message=(
-                        f'Request "{request.title}" by {request.employee.full_name} '
-                        f"has been pending for more than 48 hours."
-                    ),
-                    notification_type="pending_reminder",
-                    related_request=request,
+                    Notification(
+                        recipient=manager,
+                        message=(
+                            f'Request "{request.title}" by {request.employee.full_name} '
+                            f"has been pending for more than 48 hours."
+                        ),
+                        notification_type=NotificationType.REQUEST_PENDING,
+                        related_request=request,
+                    )
                 )
-            )
 
     Notification.objects.bulk_create(notifications)
     logger.info("remind_pending_requests: sent %d reminder notifications", len(notifications))
@@ -83,7 +85,7 @@ def mark_expired_requests():
                     f'Your vacation request "{request.title}" was automatically '
                     f"rejected because the requested dates have already passed."
                 ),
-                notification_type="request_rejected",
+                notification_type=NotificationType.REQUEST_REJECTED,
                 related_request=request,
             )
         )

@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 from drf_spectacular.views import (
     SpectacularAPIView,
@@ -9,8 +10,29 @@ from drf_spectacular.views import (
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+
+def api_root(_request):
+    return JsonResponse(
+        {
+            "name": "PeopleOps Workflow API",
+            "version": "1.0.0",
+            "docs": "/api/docs/",
+            "schema": "/api/schema/",
+            "resources": {
+                "auth": "/api/auth/token/",
+                "employees": "/api/employees/",
+                "requests": "/api/requests/",
+                "approvals": "/api/approvals/",
+                "documents": "/api/documents/",
+                "notifications": "/api/notifications/",
+                "reports": "/api/reports/",
+            },
+        }
+    )
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/", api_root, name="api-root"),
 
     # Auth
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
