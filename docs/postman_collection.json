@@ -1,20 +1,27 @@
 {
   "info": {
     "name": "PeopleOps Workflow API",
-    "description": "Complete Postman collection for the PeopleOps Workflow API.\n\nRun `seed_demo` first, then authenticate with one of the demo users:\n- Admin: admin@peopleops.com / Admin1234!\n- Manager: carlos@peopleops.com / Manager1234!\n- Employee: ana@peopleops.com / Employee1234!\n\nThe collection uses the {{base_url}} and {{token}} variables. Set base_url=http://localhost:8000 and run the Login request to auto-populate {{token}}.",
+    "description": "Complete Postman collection for the PeopleOps Workflow API.\n\n## Setup\n1. Run `docker compose exec api python manage.py seed_demo` to populate demo data.\n2. Set the `base_url` collection variable to `http://localhost:8000`.\n3. Run **Login (Admin)** — the test script auto-populates `{{token}}`.\n4. Run **List all requests (Admin)** — auto-populates `{{pending_request_id}}` and `{{in_review_request_id}}`.\n5. Run **List employees (Admin)** — auto-populates `{{employee_id}}`.\n\nAll subsequent requests use these variables — no manual ID editing needed.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_postman_id": "peopleops-workflow-api-v1"
   },
   "variable": [
-    {"key": "base_url", "value": "http://localhost:8000", "type": "string"},
-    {"key": "token", "value": "", "type": "string"}
+    {"key": "base_url",             "value": "http://localhost:8000", "type": "string"},
+    {"key": "token",                "value": "", "type": "string"},
+    {"key": "employee_id",          "value": "", "type": "string", "description": "Auto-set by 'List employees (Admin)'"},
+    {"key": "pending_request_id",   "value": "", "type": "string", "description": "Auto-set by 'List all requests (Admin)'"},
+    {"key": "in_review_request_id", "value": "", "type": "string", "description": "Auto-set by 'List all requests (Admin)'"},
+    {"key": "new_request_id",       "value": "", "type": "string", "description": "Auto-set by 'Create vacation request'"},
+    {"key": "notification_id",      "value": "", "type": "string", "description": "Auto-set by 'List my notifications'"},
+    {"key": "approval_id",          "value": "", "type": "string", "description": "Auto-set by 'List approvals (Manager)'"}
   ],
   "item": [
     {
-      "name": "Auth",
+      "name": "0 — Setup",
+      "description": "Run these first to authenticate and populate dynamic IDs.",
       "item": [
         {
-          "name": "Login (get JWT token)",
+          "name": "Login (Admin)",
           "event": [
             {
               "listen": "test",
@@ -32,15 +39,12 @@
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@peopleops.com\",\n  \"password\": \"Admin1234!\"\n}"
-            },
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"admin@peopleops.com\",\n  \"password\": \"Admin1234!\"\n}"},
             "url": "{{base_url}}/api/auth/token/"
           }
         },
         {
-          "name": "Login as Manager",
+          "name": "Login as Manager (Carlos)",
           "event": [
             {
               "listen": "test",
@@ -56,15 +60,12 @@
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"carlos@peopleops.com\",\n  \"password\": \"Manager1234!\"\n}"
-            },
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"carlos@peopleops.com\",\n  \"password\": \"Manager1234!\"\n}"},
             "url": "{{base_url}}/api/auth/token/"
           }
         },
         {
-          "name": "Login as Employee",
+          "name": "Login as Manager (Sofia)",
           "event": [
             {
               "listen": "test",
@@ -80,10 +81,28 @@
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"ana@peopleops.com\",\n  \"password\": \"Employee1234!\"\n}"
-            },
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"sofia@peopleops.com\",\n  \"password\": \"Manager1234!\"\n}"},
+            "url": "{{base_url}}/api/auth/token/"
+          }
+        },
+        {
+          "name": "Login as Employee (Ana)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access) { pm.collectionVariables.set('token', json.access); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"ana@peopleops.com\",\n  \"password\": \"Employee1234!\"\n}"},
             "url": "{{base_url}}/api/auth/token/"
           }
         },
@@ -92,11 +111,66 @@
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"refresh\": \"<your_refresh_token>\"\n}"
-            },
+            "body": {"mode": "raw", "raw": "{\n  \"refresh\": \"<paste_refresh_token_here>\"\n}"},
             "url": "{{base_url}}/api/auth/token/refresh/"
+          }
+        },
+        {
+          "name": "List all requests (Admin) — populates IDs",
+          "description": "Run this after Login (Admin). Auto-sets {{pending_request_id}} and {{in_review_request_id}}.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.results) {",
+                  "  var pending = json.results.find(r => r.status === 'pending');",
+                  "  var in_review = json.results.find(r => r.status === 'in_review');",
+                  "  if (pending)   pm.collectionVariables.set('pending_request_id',   String(pending.id));",
+                  "  if (in_review) pm.collectionVariables.set('in_review_request_id', String(in_review.id));",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": "{{base_url}}/api/requests/"
+          }
+        },
+        {
+          "name": "List employees (Admin) — populates employee_id",
+          "description": "Run this after Login (Admin). Auto-sets {{employee_id}} to the first employee.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.results && json.results.length > 0) {",
+                  "  pm.collectionVariables.set('employee_id', String(json.results[0].id));",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+            "url": {
+              "raw": "{{base_url}}/api/employees/",
+              "query": [
+                {"key": "status", "value": "active", "disabled": true},
+                {"key": "department", "value": "Engineering", "disabled": true},
+                {"key": "search", "value": "ana", "disabled": true}
+              ]
+            }
           }
         }
       ]
@@ -105,32 +179,16 @@
       "name": "Employees",
       "item": [
         {
-          "name": "List employees",
-          "request": {
-            "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {
-              "raw": "{{base_url}}/api/employees/",
-              "host": ["{{base_url}}"],
-              "path": ["api", "employees", ""],
-              "query": [
-                {"key": "status", "value": "active", "disabled": true},
-                {"key": "department", "value": "Engineering", "disabled": true},
-                {"key": "search", "value": "ana", "disabled": true}
-              ]
-            }
-          }
-        },
-        {
           "name": "Get employee detail",
           "request": {
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": "{{base_url}}/api/employees/1/"
+            "url": "{{base_url}}/api/employees/{{employee_id}}/"
           }
         },
         {
           "name": "Create employee (Admin only)",
+          "description": "EmployeeCreateSerializer requires a nested 'user' object containing account fields.",
           "request": {
             "method": "POST",
             "header": [
@@ -139,7 +197,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"newdev@peopleops.com\",\n  \"first_name\": \"New\",\n  \"last_name\": \"Developer\",\n  \"role\": \"employee\",\n  \"position\": \"Junior Developer\",\n  \"department\": \"Engineering\",\n  \"hire_date\": \"2026-01-15\",\n  \"contract_type\": \"full_time\",\n  \"base_salary\": 1800000\n}"
+              "raw": "{\n  \"user\": {\n    \"email\": \"newdev@peopleops.com\",\n    \"first_name\": \"New\",\n    \"last_name\": \"Developer\",\n    \"role\": \"employee\",\n    \"password\": \"Newdev1234!\"\n  },\n  \"position\": \"Junior Developer\",\n  \"department\": \"Engineering\",\n  \"hire_date\": \"2026-01-15\",\n  \"contract_type\": \"full_time\",\n  \"base_salary\": 1800000\n}"
             },
             "url": "{{base_url}}/api/employees/"
           }
@@ -156,15 +214,15 @@
               "mode": "raw",
               "raw": "{\n  \"position\": \"Senior Developer\",\n  \"base_salary\": 2500000\n}"
             },
-            "url": "{{base_url}}/api/employees/1/"
+            "url": "{{base_url}}/api/employees/{{employee_id}}/"
           }
         },
         {
-          "name": "Deactivate employee (soft delete, Admin only)",
+          "name": "Deactivate employee (soft delete — Admin only)",
           "request": {
             "method": "DELETE",
             "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": "{{base_url}}/api/employees/1/"
+            "url": "{{base_url}}/api/employees/{{employee_id}}/"
           }
         }
       ]
@@ -173,31 +231,30 @@
       "name": "Requests",
       "item": [
         {
-          "name": "List my requests",
+          "name": "Get request detail (pending)",
           "request": {
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": {
-              "raw": "{{base_url}}/api/requests/",
-              "host": ["{{base_url}}"],
-              "path": ["api", "requests", ""],
-              "query": [
-                {"key": "status", "value": "pending", "disabled": true},
-                {"key": "request_type", "value": "vacation", "disabled": true}
-              ]
+            "url": "{{base_url}}/api/requests/{{pending_request_id}}/"
+          }
+        },
+        {
+          "name": "Create vacation request (as Employee)",
+          "description": "Creates a new PENDING request. Auto-sets {{new_request_id}} for subsequent edit/approve requests.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.id) { pm.collectionVariables.set('new_request_id', String(json.id)); }",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Status is pending', () => pm.expect(json.status).to.equal('pending'));"
+                ],
+                "type": "text/javascript"
+              }
             }
-          }
-        },
-        {
-          "name": "Get request detail",
-          "request": {
-            "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": "{{base_url}}/api/requests/1/"
-          }
-        },
-        {
-          "name": "Create vacation request",
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -212,7 +269,7 @@
           }
         },
         {
-          "name": "Create reimbursement request",
+          "name": "Create reimbursement request (as Employee)",
           "request": {
             "method": "POST",
             "header": [
@@ -227,22 +284,8 @@
           }
         },
         {
-          "name": "Create permission request",
-          "request": {
-            "method": "POST",
-            "header": [
-              {"key": "Authorization", "value": "Bearer {{token}}"},
-              {"key": "Content-Type", "value": "application/json"}
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"request_type\": \"permission\",\n  \"title\": \"Medical appointment\",\n  \"description\": \"Need to leave at 14:00 for a medical check-up.\",\n  \"start_date\": \"2026-06-20\",\n  \"end_date\": \"2026-06-20\"\n}"
-            },
-            "url": "{{base_url}}/api/requests/"
-          }
-        },
-        {
-          "name": "Edit request (owner, while pending)",
+          "name": "Edit request — owner only, while PENDING",
+          "description": "Uses {{new_request_id}} (auto-set by 'Create vacation request'). Only the owner can edit while status=pending.",
           "request": {
             "method": "PATCH",
             "header": [
@@ -251,13 +294,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"description\": \"Updated description with more details.\"\n}"
+              "raw": "{\n  \"description\": \"Updated: annual leave, July 1–15. Flight already booked.\"\n}"
             },
-            "url": "{{base_url}}/api/requests/1/"
+            "url": "{{base_url}}/api/requests/{{new_request_id}}/"
           }
         },
         {
-          "name": "Approve request (Manager/Admin)",
+          "name": "Approve request — Manager/Admin",
+          "description": "Uses {{new_request_id}}. Log in as the employee's manager first (Sofia for Engineering staff).",
           "request": {
             "method": "POST",
             "header": [
@@ -268,11 +312,12 @@
               "mode": "raw",
               "raw": "{\n  \"comment\": \"Approved. Enjoy your vacation!\"\n}"
             },
-            "url": "{{base_url}}/api/requests/1/approve/"
+            "url": "{{base_url}}/api/requests/{{new_request_id}}/approve/"
           }
         },
         {
-          "name": "Reject request (Manager/Admin)",
+          "name": "Reject request — Manager/Admin",
+          "description": "Uses {{pending_request_id}} (a seeded PENDING request). Log in as the employee's manager first.",
           "request": {
             "method": "POST",
             "header": [
@@ -283,7 +328,7 @@
               "mode": "raw",
               "raw": "{\n  \"comment\": \"Insufficient staffing during that period. Please reschedule.\"\n}"
             },
-            "url": "{{base_url}}/api/requests/2/reject/"
+            "url": "{{base_url}}/api/requests/{{pending_request_id}}/reject/"
           }
         }
       ]
@@ -293,6 +338,22 @@
       "item": [
         {
           "name": "List approvals (Manager/Admin)",
+          "description": "Auto-sets {{approval_id}} to the first approval in the list.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.results && json.results.length > 0) {",
+                  "  pm.collectionVariables.set('approval_id', String(json.results[0].id));",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
@@ -304,7 +365,7 @@
           "request": {
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
-            "url": "{{base_url}}/api/approvals/1/"
+            "url": "{{base_url}}/api/approvals/{{approval_id}}/"
           }
         }
       ]
@@ -314,6 +375,22 @@
       "item": [
         {
           "name": "List my notifications",
+          "description": "Returns current user's notifications. Auto-sets {{notification_id}}.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.results && json.results.length > 0) {",
+                  "  pm.collectionVariables.set('notification_id', String(json.results[0].id));",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
@@ -328,15 +405,12 @@
               {"key": "Authorization", "value": "Bearer {{token}}"},
               {"key": "Content-Type", "value": "application/json"}
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"is_read\": true\n}"
-            },
-            "url": "{{base_url}}/api/notifications/1/"
+            "body": {"mode": "raw", "raw": "{\n  \"is_read\": true\n}"},
+            "url": "{{base_url}}/api/notifications/{{notification_id}}/"
           }
         },
         {
-          "name": "Mark all as read",
+          "name": "Mark all notifications as read",
           "request": {
             "method": "POST",
             "header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
