@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.15-red.svg)](https://www.django-rest-framework.org/)
-[![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen.svg)](#running-tests)
+[![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](#running-tests)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Backend REST API for **HR workflow automation** — built to demonstrate production-grade Django patterns for backend engineering roles.
@@ -23,7 +23,7 @@ Handles the full lifecycle of employee requests: from creation and review throug
 | **Async background tasks** | Celery + Redis: expiry checks, reminder notifications, weekly reports |
 | **Database design** | PostgreSQL with migrations, FKs, select_related, bulk operations |
 | **API documentation** | drf-spectacular with OpenAPI tags, summaries and Swagger/ReDoc UIs |
-| **Automated testing** | pytest-django, 48 tests, 96% coverage, no external services in CI |
+| **Automated testing** | pytest-django, 59 tests, 90% coverage, no external services in CI |
 | **CI/CD** | GitHub Actions: lint (ruff) + migration check + test coverage threshold |
 | **Containerization** | Docker Compose with 5 services: api, db, redis, celery-worker, celery-beat |
 | **Admin interface** | Fully configured Django Admin with bulk actions, badges, fieldsets |
@@ -224,7 +224,7 @@ pytest tests/test_requests.py -v
 pytest tests/ --cov=apps --cov-report=html
 ```
 
-**Current results:** 48 tests · 96% coverage · 0.3s
+**Current results:** 59 tests · 90% coverage · 0.7s
 
 ---
 
@@ -238,7 +238,7 @@ peopleops-workflow-api/
 │   │   ├── models.py                          ← CustomUser + Role
 │   │   └── admin.py                           ← role badge, readonly timestamps
 │   ├── employees/     filters, soft delete, manager hierarchy
-│   ├── requests/      workflow, approve/reject actions, Celery tasks
+│   ├── requests/      workflow, approve/reject via services.py, Celery tasks
 │   ├── approvals/     read-only audit trail
 │   ├── documents/     file upload, permission guards
 │   ├── notifications/ auto-create on status change, bulk mark-read
@@ -260,6 +260,7 @@ peopleops-workflow-api/
 │   ├── test_documents.py
 │   ├── test_notifications.py
 │   ├── test_reports.py
+│   ├── test_services.py     ← RequestWorkflowService unit tests
 │   └── test_tasks.py        ← Celery task tests
 ├── docs/
 │   ├── postman_collection.json
@@ -300,3 +301,19 @@ make schema          # generate openapi schema.yml
 **Why split serializers?** `CreateSerializer` / `UpdateSerializer` / `ReadSerializer` per resource prevents mass-assignment vulnerabilities and keeps validation logic explicit.
 
 **Why CELERY_TASK_ALWAYS_EAGER in tests?** Tasks run synchronously in the test process — no broker needed, no test infrastructure overhead.
+
+---
+
+## Known Limitations & Next Improvements
+
+This is a portfolio project built to demonstrate production-grade Django patterns. The following limitations are intentional trade-offs for scope, not oversights:
+
+| Limitation | Reasoning / Next Step |
+|---|---|
+| **No frontend** | API-only by design. A React or Next.js frontend would be a separate project. |
+| **Single-level approval** | Each request has one approver. Multi-step approval chains (e.g. manager → HR → finance) would require a workflow engine (e.g. Prefect, Temporal). |
+| **File storage is local** | `MEDIA_ROOT` stores uploads on disk. Production deployments should use S3 or GCS via `django-storages`. |
+| **No real email delivery** | Notifications are DB records. A production system would integrate SendGrid/SES via Django's email backend. |
+| **No rate limiting** | API throttling (`DEFAULT_THROTTLE_CLASSES`) is not configured. DRF has built-in support that would be trivial to add. |
+| **SQLite in CI only** | Tests run against SQLite for speed. A staging environment should run a real PostgreSQL instance. |
+| **Single Celery queue** | All tasks share the default queue. A production setup would route heavy tasks (reports, emails) to a separate high-priority queue. |

@@ -1,0 +1,17 @@
+[run]
+source = apps
+
+# Management commands are dev/ops utilities, not application logic.
+# seed_demo is intentionally excluded — it's a local seeding script,
+# not production code, and would require a full DB integration test to cover.
+omit =
+    apps/accounts/management/commands/seed_demo.py
+
+[report]
+exclude_lines =
+    # Standard pragma
+    pragma: no cover
+    # Abstract methods
+    raise NotImplementedError
+    # Type checking blocks
+    if TYPE_CHECKING:

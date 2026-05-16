@@ -1,4 +1,3 @@
-from django.db import transaction
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -6,10 +5,8 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.approvals.models import Approval, ApprovalDecision
 from apps.employees.models import Employee, EmployeeStatus
 from apps.employees.permissions import IsManagerOrAdmin
-from apps.notifications.models import Notification, NotificationType
 
 from .models import InternalRequest, RequestStatus
 from .serializers import (
@@ -18,6 +15,7 @@ from .serializers import (
     InternalRequestSerializer,
     InternalRequestUpdateSerializer,
 )
+from .services import RequestWorkflowService
 
 
 @extend_schema_view(
@@ -114,21 +112,11 @@ class InternalRequestViewSet(viewsets.ModelViewSet):
         serializer = ApproveRejectSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        with transaction.atomic():
-            internal_request.status = RequestStatus.APPROVED
-            internal_request.save(update_fields=["status", "updated_at"])
-            Approval.objects.create(
-                request=internal_request,
-                approver=request.user,
-                decision=ApprovalDecision.APPROVED,
-                comment=serializer.validated_data.get("comment", ""),
-            )
-            Notification.objects.create(
-                recipient=internal_request.employee,
-                message=f'Your request "{internal_request.title}" has been approved.',
-                notification_type=NotificationType.REQUEST_APPROVED,
-                related_request=internal_request,
-            )
+        RequestWorkflowService.approve(
+            internal_request,
+            request.user,
+            comment=serializer.validated_data.get("comment", ""),
+        )
 
         return Response(InternalRequestSerializer(internal_request).data)
 
@@ -151,20 +139,10 @@ class InternalRequestViewSet(viewsets.ModelViewSet):
         serializer = ApproveRejectSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        with transaction.atomic():
-            internal_request.status = RequestStatus.REJECTED
-            internal_request.save(update_fields=["status", "updated_at"])
-            Approval.objects.create(
-                request=internal_request,
-                approver=request.user,
-                decision=ApprovalDecision.REJECTED,
-                comment=serializer.validated_data.get("comment", ""),
-            )
-            Notification.objects.create(
-                recipient=internal_request.employee,
-                message=f'Your request "{internal_request.title}" has been rejected.',
-                notification_type=NotificationType.REQUEST_REJECTED,
-                related_request=internal_request,
-            )
+        RequestWorkflowService.reject(
+            internal_request,
+            request.user,
+            comment=serializer.validated_data.get("comment", ""),
+        )
 
         return Response(InternalRequestSerializer(internal_request).data)

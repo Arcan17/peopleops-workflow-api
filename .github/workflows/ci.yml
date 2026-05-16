@@ -36,4 +36,4 @@ jobs:
       - name: Run tests
         env:
           DJANGO_SETTINGS_MODULE: config.settings.testing
-        run: pytest tests/ -v --cov=apps --cov-report=term-missing --cov-fail-under=70
+        run: pytest tests/ -v --cov=apps --cov-config=.coveragerc --cov-report=term-missing --cov-fail-under=90

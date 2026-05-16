@@ -22,32 +22,39 @@ def remind_pending_requests():
     stale = InternalRequest.objects.filter(
         status=RequestStatus.PENDING,
         created_at__lte=cutoff,
-    ).select_related("employee")
+    ).select_related("employee__employee_profile__manager")
 
     count = stale.count()
     if count == 0:
         logger.info("remind_pending_requests: no stale requests found")
         return "No stale requests"
 
-    # Import here to avoid circular imports at module level
-    from apps.accounts.models import CustomUser, Role
-
-    managers = CustomUser.objects.filter(role__in=[Role.ADMIN, Role.MANAGER], is_active=True)
-
     notifications = []
-    for request in stale:
-        for manager in managers:
-            notifications.append(
-                    Notification(
-                        recipient=manager,
-                        message=(
-                            f'Request "{request.title}" by {request.employee.full_name} '
-                            f"has been pending for more than 48 hours."
-                        ),
-                        notification_type=NotificationType.REQUEST_PENDING,
-                        related_request=request,
-                    )
-                )
+    for req in stale:
+        # Notify only the employee's direct manager (not all managers/admins)
+        try:
+            manager = req.employee.employee_profile.manager
+        except Exception:
+            manager = None
+
+        if manager is None:
+            logger.warning(
+                "remind_pending_requests: no manager found for employee %s, skipping",
+                req.employee_id,
+            )
+            continue
+
+        notifications.append(
+            Notification(
+                recipient=manager,
+                message=(
+                    f'Request "{req.title}" by {req.employee.full_name} '
+                    f"has been pending for more than 48 hours."
+                ),
+                notification_type=NotificationType.REQUEST_PENDING,
+                related_request=req,
+            )
+        )
 
     Notification.objects.bulk_create(notifications)
     logger.info("remind_pending_requests: sent %d reminder notifications", len(notifications))

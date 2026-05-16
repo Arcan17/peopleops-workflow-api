@@ -109,7 +109,7 @@ def sample_notification(db, employee_user, sample_request):
 @pytest.fixture
 def sample_document_file():
     return SimpleUploadedFile(
-        "contract.txt",
-        b"sample contract content",
-        content_type="text/plain",
+        "contract.pdf",
+        b"%PDF-1.4 sample contract content",
+        content_type="application/pdf",
     )
