@@ -1,0 +1,4 @@
+-r base.txt
+ruff==0.8.4
+ipython==8.31.0
+django-extensions==3.2.3
