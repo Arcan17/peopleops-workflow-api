@@ -32,10 +32,8 @@ def remind_pending_requests():
     notifications = []
     for req in stale:
         # Notify only the employee's direct manager (not all managers/admins)
-        try:
-            manager = req.employee.employee_profile.manager
-        except Exception:
-            manager = None
+        profile = getattr(req.employee, "employee_profile", None)
+        manager = profile.manager if profile is not None else None
 
         if manager is None:
             logger.warning(

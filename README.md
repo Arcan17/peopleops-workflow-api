@@ -13,6 +13,53 @@ Handles the full lifecycle of employee requests: from creation and review throug
 
 ---
 
+## Screenshots
+
+| Swagger UI | Django Admin |
+|:---:|:---:|
+| ![Swagger UI](docs/images/swagger_ui.png) | ![Django Admin](docs/images/django_admin.png) |
+
+| Internal Requests — Admin view with status badges |
+|:---:|
+| ![Admin Requests](docs/images/admin_requests.png) |
+
+---
+
+## Request Lifecycle
+
+```
+Employee                    Manager / Admin               System
+────────                    ───────────────               ──────
+  │                               │                         │
+  │  POST /api/requests/          │                         │
+  │──────────────────────────────>│                         │
+  │  status: PENDING              │                         │
+  │                               │                         │
+  │                    POST /approve/ or /reject/           │
+  │                               │                         │
+  │              RequestWorkflowService.approve()           │
+  │                      ┌────────┴──────────┐             │
+  │                      │  assert_can_review │             │
+  │                      │  assert_reviewable │             │
+  │                      │  @transaction.atomic             │
+  │                      │    status=APPROVED │             │
+  │                      │    Approval record │             │
+  │                      │    Notification    │             │
+  │                      └────────┬──────────┘             │
+  │                               │                         │
+  │<── Notification ──────────────│                         │
+  │  "Your request was approved"  │                         │
+  │                               │                         │
+  │                               │   remind_pending (24h)  │
+  │                               │<────────────────────────│
+  │                               │                         │
+  │                               │   mark_expired (1h)     │
+  │<── Auto-rejected ─────────────│<────────────────────────│
+  │  (vacation past end_date)     │                         │
+```
+
+---
+
 ## What this project demonstrates
 
 | Skill | Implementation |

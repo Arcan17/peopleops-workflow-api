@@ -5,7 +5,6 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.employees.models import Employee, EmployeeStatus
 from apps.employees.permissions import IsManagerOrAdmin
 
 from .models import InternalRequest, RequestStatus
@@ -69,21 +68,13 @@ class InternalRequestViewSet(viewsets.ModelViewSet):
         return super().get_queryset().filter(employee=user)
 
     def _ensure_owner_can_edit(self):
+        """Only the request owner may edit, and only while status=PENDING."""
         internal_request = self.get_object()
         if internal_request.employee_id != self.request.user.id:
             raise PermissionDenied("Only the request owner can edit a request.")
+        if internal_request.status != RequestStatus.PENDING:
+            raise PermissionDenied("Requests can only be edited while they are pending.")
         return internal_request
-
-    def _can_review_request(self, user, internal_request):
-        if internal_request.employee_id == user.id:
-            return False
-        if user.is_admin:
-            return True
-        return Employee.objects.filter(
-            user=internal_request.employee,
-            manager=user,
-            status=EmployeeStatus.ACTIVE,
-        ).exists()
 
     def update(self, request, *args, **kwargs):
         self._ensure_owner_can_edit()
@@ -96,53 +87,47 @@ class InternalRequestViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Requests"],
         summary="Approve request",
-        description="Approve a pending/in-review request. Manager or Admin only. Creates approval record and notifies employee.",
+        description=(
+            "Approve a pending or in-review request. "
+            "Manager (direct reports only) or Admin. "
+            "Creates an Approval record and notifies the employee."
+        ),
         request=ApproveRejectSerializer,
     )
     @action(detail=True, methods=["post"], permission_classes=[IsManagerOrAdmin])
     def approve(self, request, pk=None):
         internal_request = self.get_object()
-        if not self._can_review_request(request.user, internal_request):
-            raise PermissionDenied("You cannot approve this request.")
-        if internal_request.status not in (RequestStatus.PENDING, RequestStatus.IN_REVIEW):
-            return Response(
-                {"detail": "Only pending or in-review requests can be approved."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         serializer = ApproveRejectSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # All business rules (permission + status) enforced inside the service
         RequestWorkflowService.approve(
             internal_request,
             request.user,
             comment=serializer.validated_data.get("comment", ""),
         )
-
         return Response(InternalRequestSerializer(internal_request).data)
 
     @extend_schema(
         tags=["Requests"],
         summary="Reject request",
-        description="Reject a pending/in-review request. Manager or Admin only. Creates approval record and notifies employee.",
+        description=(
+            "Reject a pending or in-review request. "
+            "Manager (direct reports only) or Admin. "
+            "Creates an Approval record and notifies the employee."
+        ),
         request=ApproveRejectSerializer,
     )
     @action(detail=True, methods=["post"], permission_classes=[IsManagerOrAdmin])
     def reject(self, request, pk=None):
         internal_request = self.get_object()
-        if not self._can_review_request(request.user, internal_request):
-            raise PermissionDenied("You cannot reject this request.")
-        if internal_request.status not in (RequestStatus.PENDING, RequestStatus.IN_REVIEW):
-            return Response(
-                {"detail": "Only pending or in-review requests can be rejected."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         serializer = ApproveRejectSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # All business rules (permission + status) enforced inside the service
         RequestWorkflowService.reject(
             internal_request,
             request.user,
             comment=serializer.validated_data.get("comment", ""),
         )
-
         return Response(InternalRequestSerializer(internal_request).data)
