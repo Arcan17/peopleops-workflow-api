@@ -139,9 +139,11 @@ apps/
 | Edit own pending request | ✅ | ❌ | ❌ |
 | Approve / reject direct reports | ❌ | ✅ | ❌ |
 | Approve / reject any request | ❌ | ❌ | ✅ |
-| View all employees | ❌ | ✅ | ✅ |
+| View direct reports (employees) | ❌ | ✅ | ❌ |
+| View all employees | ❌ | ❌ | ✅ |
 | Create / deactivate employees | ❌ | ❌ | ✅ |
-| Upload / delete documents | ❌ | ✅ | ✅ |
+| Upload / delete documents (direct reports) | ❌ | ✅ | ❌ |
+| Upload / delete documents (any employee) | ❌ | ❌ | ✅ |
 | View reports | ❌ | ✅ | ✅ |
 | Django Admin access | ❌ | ❌ | ✅ |
 
@@ -223,7 +225,7 @@ GET /api/approvals/{id}/   → Detail
 
 ### Documents
 ```
-GET    /api/documents/         → List (employees see own; managers see all)
+GET    /api/documents/         → List (admin: all, manager: direct reports, employee: own)
 POST   /api/documents/         → Upload — Manager or Admin
 GET    /api/documents/{id}/    → Detail
 DELETE /api/documents/{id}/    → Delete — Manager or Admin
