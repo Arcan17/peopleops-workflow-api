@@ -38,7 +38,24 @@ class EmployeeCreateSerializer(serializers.ModelSerializer):
         return Employee.objects.create(user=user, **validated_data)
 
 
+class ManagerEmployeeUpdateSerializer(serializers.ModelSerializer):
+    """
+    Fields a manager is allowed to update for their direct reports.
+    Sensitive fields (salary, status, manager) are intentionally excluded
+    — those require admin privileges.
+    """
+
+    class Meta:
+        model = Employee
+        fields = ["position", "department", "hire_date", "contract_type"]
+
+
 class EmployeeUpdateSerializer(serializers.ModelSerializer):
+    """
+    Full update serializer — admin only.
+    Includes sensitive fields: base_salary, status and manager reassignment.
+    """
+
     class Meta:
         model = Employee
         fields = ["position", "department", "hire_date", "contract_type", "base_salary", "status", "manager"]

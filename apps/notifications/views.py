@@ -1,5 +1,5 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import viewsets
+from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -18,10 +18,25 @@ from .serializers import NotificationSerializer
     partial_update=extend_schema(
         tags=["Notifications"],
         summary="Mark notification as read",
-        description="Update is_read field to true.",
+        description="Set is_read=true on a single notification.",
     ),
 )
-class NotificationViewSet(viewsets.ModelViewSet):
+class NotificationViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Notifications are system-generated — manual creation via API is not allowed.
+
+    Supported operations:
+      GET  /api/notifications/          → list own notifications
+      GET  /api/notifications/{id}/     → detail
+      PATCH /api/notifications/{id}/    → mark as read
+      POST  /api/notifications/read_all/ → mark all as read
+    """
+
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "patch", "post", "head", "options"]

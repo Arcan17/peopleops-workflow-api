@@ -18,30 +18,39 @@ class RequestReportView(APIView):
         tags=["Reports"],
         summary="Request statistics",
         description=(
-            "Returns aggregated statistics for all internal requests: "
+            "Returns aggregated statistics for internal requests: "
             "breakdown by status, by request type, total count and pending count. "
+            "Admins see all requests; managers see only their direct reports' requests. "
             "Manager or Admin only."
         ),
     )
     def get(self, request):
+        qs = self._base_queryset(request.user)
+
         by_status = (
-            InternalRequest.objects
-            .values("status")
+            qs.values("status")
             .annotate(count=Count("id"))
             .order_by("status")
         )
         by_type = (
-            InternalRequest.objects
-            .values("request_type")
+            qs.values("request_type")
             .annotate(count=Count("id"))
             .order_by("-count")
         )
         return Response({
             "by_status": list(by_status),
             "by_type": list(by_type),
-            "total": InternalRequest.objects.count(),
-            "pending": InternalRequest.objects.filter(status=RequestStatus.PENDING).count(),
+            "total": qs.count(),
+            "pending": qs.filter(status=RequestStatus.PENDING).count(),
         })
+
+    @staticmethod
+    def _base_queryset(user):
+        qs = InternalRequest.objects
+        if not user.is_admin:
+            # Managers see only requests submitted by their direct reports
+            qs = qs.filter(employee__employee_profile__manager=user)
+        return qs
 
 
 class EmployeeReportView(APIView):
@@ -53,27 +62,34 @@ class EmployeeReportView(APIView):
         description=(
             "Returns a summary of the employee workforce: "
             "breakdown by employment status, by department, total headcount and active count. "
+            "Admins see all employees; managers see only their direct reports. "
             "Manager or Admin only."
         ),
     )
     def get(self, request):
+        qs = self._base_queryset(request.user)
+
         by_status = (
-            Employee.objects
-            .values("status")
+            qs.values("status")
             .annotate(count=Count("id"))
         )
         by_department = (
-            Employee.objects
-            .values("department")
+            qs.values("department")
             .annotate(count=Count("id"))
             .order_by("-count")
         )
         return Response({
             "by_status": list(by_status),
             "by_department": list(by_department),
-            "total": Employee.objects.count(),
-            "active": Employee.objects.filter(status=EmployeeStatus.ACTIVE).count(),
+            "total": qs.count(),
+            "active": qs.filter(status=EmployeeStatus.ACTIVE).count(),
         })
+
+    @staticmethod
+    def _base_queryset(user):
+        if user.is_admin:
+            return Employee.objects.all()
+        return Employee.objects.filter(manager=user)
 
 
 class RequestExportView(APIView):
@@ -83,8 +99,9 @@ class RequestExportView(APIView):
         tags=["Reports"],
         summary="Export requests to CSV",
         description=(
-            "Downloads a CSV file with all internal requests including employee name, "
-            "type, status, title and timestamps. Manager or Admin only."
+            "Downloads a CSV file with internal requests. "
+            "Admins get all requests; managers get only their direct reports' requests. "
+            "Manager or Admin only."
         ),
         responses={(200, "text/csv"): bytes},
     )
@@ -95,8 +112,8 @@ class RequestExportView(APIView):
         writer = csv.writer(response)
         writer.writerow(["ID", "Employee", "Type", "Status", "Title", "Start Date", "End Date", "Amount", "Created At"])
 
-        requests_qs = InternalRequest.objects.select_related("employee").all()
-        for req in requests_qs:
+        qs = RequestReportView._base_queryset(request.user).select_related("employee")
+        for req in qs:
             writer.writerow([
                 req.id,
                 req.employee.email,

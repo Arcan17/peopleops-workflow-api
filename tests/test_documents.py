@@ -191,3 +191,35 @@ class TestDocuments:
              "title": "ID card scan", "file": png_file},
         )
         assert response.status_code == status.HTTP_201_CREATED
+
+    def test_spoofed_mime_type_rejected(self, manager_client, sample_employee):
+        """
+        A file claiming to be PDF but with wrong magic bytes must be rejected.
+        This catches attackers who lie about content_type but upload other content.
+        """
+        fake_pdf = SimpleUploadedFile(
+            "not_a_pdf.pdf",
+            b"This is just plain text, not a PDF",  # no %PDF header
+            content_type="application/pdf",
+        )
+        response = manager_client.post(
+            self.URL,
+            {"employee": sample_employee.id, "document_type": "contract",
+             "title": "Fake PDF", "file": fake_pdf},
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "does not match" in str(response.data).lower()
+
+    def test_jpeg_file_accepted(self, manager_client, sample_employee):
+        """JPEG files with correct magic bytes are accepted."""
+        jpeg_file = SimpleUploadedFile(
+            "photo.jpg",
+            b"\xff\xd8\xff\xe0\x00\x10JFIF",  # JPEG magic bytes
+            content_type="image/jpeg",
+        )
+        response = manager_client.post(
+            self.URL,
+            {"employee": sample_employee.id, "document_type": "personal",
+             "title": "Employee photo", "file": jpeg_file},
+        )
+        assert response.status_code == status.HTTP_201_CREATED

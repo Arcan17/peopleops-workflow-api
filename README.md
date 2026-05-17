@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.15-red.svg)](https://www.django-rest-framework.org/)
-[![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](#running-tests)
+[![Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen.svg)](#running-tests)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Backend REST API for **HR workflow automation** — built to demonstrate production-grade Django patterns for backend engineering roles.
@@ -70,7 +70,7 @@ Employee                    Manager / Admin               System
 | **Async background tasks** | Celery + Redis: expiry checks, reminder notifications, weekly reports |
 | **Database design** | PostgreSQL with migrations, FKs, select_related, bulk operations |
 | **API documentation** | drf-spectacular with OpenAPI tags, summaries and Swagger/ReDoc UIs |
-| **Automated testing** | pytest-django, 59 tests, 90% coverage, no external services in CI |
+| **Automated testing** | pytest-django, 89 tests, 92% coverage, no external services in CI |
 | **CI/CD** | GitHub Actions: lint (ruff) + migration check + test coverage threshold |
 | **Containerization** | Docker Compose with 5 services: api, db, redis, celery-worker, celery-beat |
 | **Admin interface** | Fully configured Django Admin with bulk actions, badges, fieldsets |
@@ -271,7 +271,7 @@ pytest tests/test_requests.py -v
 pytest tests/ --cov=apps --cov-report=html
 ```
 
-**Current results:** 59 tests · 90% coverage · 0.7s
+**Current results:** 89 tests · 92% coverage · 0.8s
 
 ---
 

@@ -1,3 +1,4 @@
+from django.db.models import Q
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
@@ -10,6 +11,7 @@ from .serializers import (
     EmployeeCreateSerializer,
     EmployeeSerializer,
     EmployeeUpdateSerializer,
+    ManagerEmployeeUpdateSerializer,
 )
 
 
@@ -19,7 +21,9 @@ from .serializers import (
         summary="List employees",
         description=(
             "Returns a paginated list of employees. "
-            "Managers and admins see all employees; regular employees see only themselves. "
+            "Admins see everyone. "
+            "Managers see their direct reports (plus their own profile if they have one). "
+            "Employees see only their own profile. "
             "Supports filtering by status, department and contract type."
         ),
         parameters=[
@@ -29,10 +33,7 @@ from .serializers import (
             OpenApiParameter("search", description="Search by name, email or position"),
         ],
     ),
-    retrieve=extend_schema(
-        tags=["Employees"],
-        summary="Get employee detail",
-    ),
+    retrieve=extend_schema(tags=["Employees"], summary="Get employee detail"),
     create=extend_schema(
         tags=["Employees"],
         summary="Create employee",
@@ -41,12 +42,19 @@ from .serializers import (
     update=extend_schema(
         tags=["Employees"],
         summary="Update employee",
-        description="Full update of an employee. Manager or Admin only.",
+        description=(
+            "Update an employee. Manager or Admin only. "
+            "Admins may change any field including salary, status and manager. "
+            "Managers may only update position, department, hire_date and contract_type."
+        ),
     ),
     partial_update=extend_schema(
         tags=["Employees"],
         summary="Partial update employee",
-        description="Partial update of an employee. Manager or Admin only.",
+        description=(
+            "Partial update of an employee. Manager or Admin only. "
+            "Same field restrictions as full update apply."
+        ),
     ),
     destroy=extend_schema(
         tags=["Employees"],
@@ -72,13 +80,22 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             return EmployeeCreateSerializer
         if self.action in ("update", "partial_update"):
-            return EmployeeUpdateSerializer
+            # Admins can change all fields (salary, status, manager reassignment)
+            # Managers can only change operational fields
+            if self.request.user.is_admin:
+                return EmployeeUpdateSerializer
+            return ManagerEmployeeUpdateSerializer
         return EmployeeSerializer
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_manager_or_admin:
+        if user.is_admin:
             return super().get_queryset()
+        if user.is_manager:
+            # Direct reports + the manager's own profile (if they have an Employee record)
+            return super().get_queryset().filter(
+                Q(manager=user) | Q(user=user)
+            )
         return super().get_queryset().filter(user=user)
 
     def destroy(self, request, *args, **kwargs):
