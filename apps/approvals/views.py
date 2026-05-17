@@ -11,3 +11,9 @@ class ApprovalViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ApprovalSerializer
     permission_classes = [IsManagerOrAdmin]
     ordering = ["-decided_at"]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_admin:
+            return super().get_queryset()
+        return super().get_queryset().filter(request__employee__employee_profile__manager=user)

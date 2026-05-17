@@ -207,7 +207,7 @@ DELETE /api/employees/{id}/        → Soft delete (sets status=inactive) — Ad
 
 ### Internal Requests
 ```
-GET    /api/requests/              → List (employees see own; managers/admins see all)
+GET    /api/requests/              → List (admin: all, manager: direct reports, employee: own)
 POST   /api/requests/              → Submit request (vacation/permission/reimbursement/document)
 GET    /api/requests/{id}/         → Detail
 PATCH  /api/requests/{id}/         → Edit — owner only, while status=PENDING
@@ -217,7 +217,7 @@ POST   /api/requests/{id}/reject/  → Reject — Manager (direct reports) or Ad
 
 ### Approvals
 ```
-GET /api/approvals/        → List all approval records — Manager or Admin
+GET /api/approvals/        → List approval records (admin: all, manager: direct reports only)
 GET /api/approvals/{id}/   → Detail
 ```
 

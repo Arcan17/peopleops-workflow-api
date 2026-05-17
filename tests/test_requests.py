@@ -43,6 +43,46 @@ class TestInternalRequests:
         assert response.status_code == status.HTTP_200_OK
         assert response.data["count"] >= 1
 
+    def test_manager_sees_only_direct_reports_requests(self, manager_client, sample_request):
+        from apps.accounts.models import CustomUser, Role
+        from apps.requests.models import InternalRequest
+
+        other_manager = CustomUser.objects.create_user(
+            email="other-manager@example.com",
+            password="managerpass123",
+            first_name="Other",
+            last_name="Manager",
+            role=Role.MANAGER,
+        )
+        other_employee = CustomUser.objects.create_user(
+            email="other-employee@example.com",
+            password="employeepass123",
+            first_name="Other",
+            last_name="Employee",
+            role=Role.EMPLOYEE,
+        )
+        other_request = InternalRequest.objects.create(
+            employee=other_employee,
+            request_type="permission",
+            title="Other manager request",
+            description="Should not be visible to manager_user",
+        )
+        from apps.employees.models import Employee
+        Employee.objects.create(
+            user=other_employee,
+            position="QA Engineer",
+            department="Engineering",
+            hire_date="2024-01-10",
+            contract_type="full_time",
+            manager=other_manager,
+        )
+
+        response = manager_client.get(self.URL)
+        assert response.status_code == status.HTTP_200_OK
+        visible_ids = {item["id"] for item in response.data["results"]}
+        assert sample_request.id in visible_ids
+        assert other_request.id not in visible_ids
+
     # ── Approve / Reject ──────────────────────────────────────────────────────
     def test_manager_can_approve_request(self, manager_client, sample_request):
         response = manager_client.post(
@@ -77,11 +117,11 @@ class TestInternalRequests:
         response = admin_client.post(f"{self.URL}{own_request.id}/approve/", {})
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_manager_cannot_approve_request_without_reporting_line(self, manager_client, sample_request):
+    def test_manager_cannot_access_request_without_reporting_line(self, manager_client, sample_request):
         from apps.employees.models import Employee
         Employee.objects.filter(user=sample_request.employee).update(manager=None)
         response = manager_client.post(f"{self.URL}{sample_request.id}/approve/", {})
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_cannot_approve_already_approved_request(self, manager_client, sample_request):
         manager_client.post(f"{self.URL}{sample_request.id}/approve/", {})

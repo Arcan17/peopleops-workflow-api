@@ -23,7 +23,9 @@ from .services import RequestWorkflowService
         summary="List internal requests",
         description=(
             "Returns a paginated list of requests. "
-            "Managers and admins see all requests; employees see only their own."
+            "Admins see all requests. "
+            "Managers see only requests from their direct reports. "
+            "Employees see only their own."
         ),
     ),
     retrieve=extend_schema(tags=["Requests"], summary="Get request detail"),
@@ -63,8 +65,10 @@ class InternalRequestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_manager_or_admin:
+        if user.is_admin:
             return super().get_queryset()
+        if user.is_manager:
+            return super().get_queryset().filter(employee__employee_profile__manager=user)
         return super().get_queryset().filter(employee=user)
 
     def _ensure_owner_can_edit(self):
