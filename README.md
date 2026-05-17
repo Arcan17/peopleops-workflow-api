@@ -366,3 +366,54 @@ This is a portfolio project built to demonstrate production-grade Django pattern
 | **No rate limiting** | API throttling (`DEFAULT_THROTTLE_CLASSES`) is not configured. DRF has built-in support that would be trivial to add. |
 | **SQLite in CI only** | Tests run against SQLite for speed. A staging environment should run a real PostgreSQL instance. |
 | **Single Celery queue** | All tasks share the default queue. A production setup would route heavy tasks (reports, emails) to a separate high-priority queue. |
+
+---
+
+## Why This Project Matters
+
+Most backend portfolios show CRUD apps. This project demonstrates what a **production HR system** actually requires:
+
+| Requirement | How it's implemented here |
+|---|---|
+| **Multi-role access control** | Three roles (Admin / Manager / Employee) each with different queryset scoping and permission checks — not just flag checks |
+| **Business logic isolation** | `RequestWorkflowService` encapsulates all approval rules independently of views, admin and Celery tasks |
+| **Audit trail** | Every decision creates an `Approval` record — who approved, when, with a comment |
+| **Async background processing** | Celery + Redis handle expiry checks, reminder notifications and weekly reports on schedule |
+| **Security-aware file handling** | Documents are validated by MIME type whitelist **and** magic bytes — prevents content-type spoofing attacks |
+| **Scoped reporting** | Managers see only their team's data in reports and CSV exports — not a global dump |
+| **Tested business rules** | 89 tests, 92% coverage — not just happy paths, but permission boundaries, edge cases and service layer unit tests |
+| **CI/CD ready** | GitHub Actions runs lint, migration check and coverage threshold on every push |
+
+This is the kind of system a company like Talana, Buk or Factorial runs internally. The goal was to show that I can design and build it cleanly.
+
+---
+
+## Interview Talking Points
+
+If you're reviewing this project before an interview, here are the decisions I can explain in depth:
+
+**Architecture**
+- Why I extracted a service layer (`RequestWorkflowService`) instead of putting logic in views
+- How `@transaction.atomic` ensures approve/reject never leaves the database in a partial state
+- Why I used `frozenset` for `REVIEWABLE_STATUSES` instead of a simple list
+
+**Permissions**
+- How role-based queryset scoping works — managers see only their direct reports, not all employees
+- Why `PermissionDenied` is raised inside the service (not the view) — so the rule is enforced regardless of entry point
+- How magic bytes validation prevents a user from uploading a `.exe` renamed to `.pdf`
+
+**Testing strategy**
+- How I used pytest fixtures to avoid repeating setup across 89 tests
+- Why I test the service layer independently from the API layer
+- Why `CELERY_TASK_ALWAYS_EAGER = True` in tests — no broker needed, no flakiness
+
+**Django / DRF patterns**
+- Why I split serializers (`CreateSerializer` / `UpdateSerializer` / `ReadSerializer`) instead of one serializer per model
+- Why `ManagerEmployeeUpdateSerializer` silently excludes `base_salary` instead of raising an error
+- How `drf-spectacular` generates the OpenAPI schema automatically from viewsets and serializers
+
+**Trade-offs I'd change in production**
+- Replace local file storage with S3 via `django-storages`
+- Add real email delivery via SendGrid/SES
+- Add DRF throttling (`DEFAULT_THROTTLE_CLASSES`)
+- Route heavy Celery tasks (reports, emails) to a separate high-priority queue
